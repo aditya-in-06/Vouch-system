@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useRouter } from 'next/navigation' // <--- 1. ADDED THIS IMPORT
 
 export default function Home() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const router = useRouter() // <--- 2. ADDED THIS LINE
 
   // SIGN UP
   const handleSignUp = async () => {
@@ -55,7 +57,8 @@ export default function Home() {
         console.log(profileError)
         alert('Profile creation failed')
       } else {
-        alert('Signup + profile created successfully!')
+        alert('Signup + profile created successfully! Redirecting...')
+        router.push('/dashboard') // <--- 3. REDIRECT AFTER SIGNUP
       }
     } catch (err) {
       alert('Network error. Check connection.')
@@ -82,7 +85,8 @@ export default function Home() {
       if (error) {
         alert(`Login Error: ${error.message}`)
       } else {
-        alert('Login successful!')
+        alert('Login successful! Redirecting...')
+        router.push('/dashboard') // <--- 4. REDIRECT AFTER LOGIN
       }
     } catch (err) {
       alert('Network error. Check connection.')
@@ -93,7 +97,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 space-y-8">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 space-y-8 text-black">
         
         <div className="text-center">
           <h1 className="text-4xl font-extrabold text-blue-600">Vouch</h1>
@@ -109,7 +113,7 @@ export default function Home() {
             <input
               type="email"
               placeholder="name@university.com"
-              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-black bg-white"
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
@@ -121,7 +125,7 @@ export default function Home() {
             <input
               type="password"
               placeholder="Min. 6 characters"
-              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-black bg-white"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
@@ -133,7 +137,7 @@ export default function Home() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="w-full bg-blue-600 text-white font-semibold p-3 rounded-xl hover:bg-blue-700"
+            className="w-full bg-blue-600 text-white font-semibold p-3 rounded-xl hover:bg-blue-700 disabled:bg-gray-400"
           >
             {loading ? 'Processing...' : 'Login'}
           </button>
@@ -141,7 +145,7 @@ export default function Home() {
           <button
             onClick={handleSignUp}
             disabled={loading}
-            className="w-full bg-white border-2 border-blue-600 text-blue-600 font-semibold p-3 rounded-xl hover:bg-blue-50"
+            className="w-full bg-white border-2 border-blue-600 text-blue-600 font-semibold p-3 rounded-xl hover:bg-blue-50 disabled:opacity-50"
           >
             Create New Account
           </button>
