@@ -160,3 +160,35 @@ export default function Home() {
     </div>
   )
 }
+const handleJoinProject = async (code: string) => {
+  // 1. Ask Supabase: "Does a project with this code exist?"
+  const { data: project, error: findError } = await supabase
+    .from('projects')
+    .select('id, name')
+    .eq('invite_code', code.toUpperCase())
+    .single()
+
+  if (!project) {
+    return alert("Invalid Code! Double-check with your partner.")
+  }
+
+  // 2. If it exists, add YOU to that project's member list
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  const { error: joinError } = await supabase
+    .from('members')
+    .insert([
+      { 
+        project_id: project.id, 
+        user_id: user?.id,
+        email: user?.email 
+      }
+    ])
+
+  if (joinError) {
+    alert("You are already in this project or there was an error!")
+  } else {
+    alert(`Success! You have joined project: ${project.name}`)
+    // Now we can move you to the 'Project View'
+  }
+}
