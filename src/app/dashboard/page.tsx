@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
+import { useRouter } from 'next/navigation'
  
 export default function Dashboard() {
   const [view, setView] = useState<'selection' | 'create' | 'join'>('selection')
@@ -8,6 +9,7 @@ export default function Dashboard() {
   const [inviteCodeInput, setInviteCodeInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const router = useRouter()
  
   useEffect(() => { setMounted(true) }, [])
  
@@ -18,13 +20,21 @@ export default function Dashboard() {
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
       const { data: userData, error: userError } = await supabase.auth.getUser()
       if (userError || !userData.user) throw new Error("Could not find logged-in user")
-      const { error: insertError } = await supabase
+      const { data: createdProject, error: insertError } = await supabase
         .from('projects')
         .insert([{ name: projectName, invite_code: inviteCode, creator_id: userData.user.id }])
+        .select('id, name, invite_code')
+        .single()
       if (insertError) throw insertError
-      alert(`SUCCESS! Your Project Code is: ${inviteCode}`)
-      setView('selection')
-      setProjectName('')
+      if (!createdProject) throw new Error('Project creation succeeded but no project was returned')
+
+      const { error: memberInsertError } = await supabase
+        .from('members')
+        .insert([{ project_id: createdProject.id, user_id: userData.user.id, email: userData.user.email }])
+      if (memberInsertError) throw memberInsertError
+
+      alert(`SUCCESS! Your Project Code is: ${createdProject.invite_code}`)
+      router.push(`/project/${createdProject.id}`)
     } catch (error: any) {
       alert("Error: " + error.message)
     } finally {
@@ -48,8 +58,7 @@ export default function Dashboard() {
         .insert([{ project_id: project.id, user_id: userData.user?.id, email: userData.user?.email }])
       if (joinError) throw joinError
       alert(`Successfully joined: ${project.name}`)
-      setView('selection')
-      setInviteCodeInput('')
+      router.push(`/project/${project.id}`)
     } catch (error: any) {
       alert(error.message)
     } finally {
