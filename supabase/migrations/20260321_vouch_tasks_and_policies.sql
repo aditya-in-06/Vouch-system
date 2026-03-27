@@ -1,5 +1,5 @@
--- Tasks and vouching schema for Vouch System
--- Safe to run in Supabase SQL editor.
+-- Tasks and vouching schema for Vouch System.
+-- Safe to run in Supabase SQL editor and safe to re-run on older installs.
 
 create extension if not exists pgcrypto;
 
@@ -14,6 +14,10 @@ create table if not exists public.tasks (
   created_by uuid default auth.uid() references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+-- Repair older installs where public.tasks already existed before due_date was added.
+alter table if exists public.tasks
+  add column if not exists due_date date;
 
 create index if not exists idx_tasks_project_id on public.tasks(project_id);
 create index if not exists idx_tasks_assigned_to on public.tasks(assigned_to);
@@ -31,6 +35,8 @@ create table if not exists public.task_vouches (
 create index if not exists idx_task_vouches_project_id on public.task_vouches(project_id);
 create index if not exists idx_task_vouches_task_id on public.task_vouches(task_id);
 create index if not exists idx_task_vouches_voucher_user_id on public.task_vouches(voucher_user_id);
+create unique index if not exists idx_task_vouches_task_voucher_user
+  on public.task_vouches(task_id, voucher_user_id);
 
 alter table public.tasks enable row level security;
 alter table public.task_vouches enable row level security;

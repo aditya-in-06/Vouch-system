@@ -1,30 +1,47 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, supabaseConfigured } from '../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
+type AuthView = 'signin' | 'signup'
+
 export default function Home() {
+  const [view, setView] = useState<AuthView>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    const rafId = requestAnimationFrame(() => setMounted(true))
+    if (!supabaseConfigured) {
+      console.error('Supabase is not configured.')
+    }
+    return () => cancelAnimationFrame(rafId)
+  }, [])
 
   const handleSignUp = async () => {
     if (!email || !password) return alert('Please enter both email and password')
+    if (password.length < 6) return alert('Password must be at least 6 characters')
+    if (password !== confirmPassword) return alert('Passwords do not match')
     setLoading(true)
     try {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) { alert(`Signup Error: ${error.message}`); setLoading(false); return }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { alert('User not found after signup'); setLoading(false); return }
-      const { error: profileError } = await supabase.from('profiles').insert([{ id: user.id, email: user.email }])
-      if (profileError) { console.log(profileError); alert('Profile creation failed') }
-      else { alert('Account created! Redirecting...'); router.push('/dashboard') }
-    } catch (err) {
+      // Try to insert profile, but don't block if table doesn't exist
+      try {
+        await supabase.from('profiles').insert([{ id: user.id, email: user.email }])
+      } catch {
+        // profiles table may not exist, that's ok
+      }
+      alert('Account created successfully! Redirecting...')
+      router.push('/dashboard')
+    } catch {
       alert('Network error. Check connection.')
     }
     setLoading(false)
@@ -36,11 +53,18 @@ export default function Home() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { alert(`Login Error: ${error.message}`) }
-      else { alert('Login successful! Redirecting...'); router.push('/dashboard') }
-    } catch (err) {
+      else { router.push('/dashboard') }
+    } catch {
       alert('Network error. Check connection.')
     }
     setLoading(false)
+  }
+
+  const switchView = (newView: AuthView) => {
+    setView(newView)
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
   }
 
   return (
@@ -88,7 +112,7 @@ export default function Home() {
 
         .v-panel {
           width: 100%;
-          max-width: 400px;
+          max-width: 420px;
           position: relative;
           z-index: 10;
           opacity: ${mounted ? 1 : 0};
@@ -269,6 +293,21 @@ export default function Home() {
         .v-btn-primary:active:not(:disabled) { transform: translateY(0); }
         .v-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
+        .v-btn-signup {
+          background: rgba(34,197,94,0.12);
+          border: 1px solid rgba(34,197,94,0.3);
+          color: #4ade80;
+        }
+
+        .v-btn-signup:hover:not(:disabled) {
+          background: rgba(34,197,94,0.2);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 20px rgba(34,197,94,0.2);
+        }
+
+        .v-btn-signup:active:not(:disabled) { transform: translateY(0); }
+        .v-btn-signup:disabled { opacity: 0.45; cursor: not-allowed; }
+
         .v-btn-ghost {
           background: transparent;
           border: 1px solid rgba(255,255,255,0.07);
@@ -315,6 +354,52 @@ export default function Home() {
           border-radius: 50%;
           animation: spin 0.6s linear infinite;
         }
+
+        .v-tab-row {
+          display: flex;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          margin-bottom: 1.5rem;
+        }
+
+        .v-tab {
+          flex: 1;
+          padding: 0.7rem 0;
+          text-align: center;
+          font-size: 0.82rem;
+          font-weight: 500;
+          color: rgba(255,255,255,0.3);
+          cursor: pointer;
+          border: none;
+          background: none;
+          border-bottom: 2px solid transparent;
+          transition: all 0.15s ease;
+          font-family: 'Outfit', sans-serif;
+        }
+
+        .v-tab:hover {
+          color: rgba(255,255,255,0.6);
+        }
+
+        .v-tab.active {
+          color: #f1f5f9;
+          border-bottom-color: #3b82f6;
+        }
+
+        .v-view {
+          animation: viewIn 0.22s cubic-bezier(0.16,1,0.3,1) forwards;
+        }
+
+        @keyframes viewIn {
+          from { opacity: 0; transform: translateX(6px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .v-pw-hint {
+          font-size: 0.68rem;
+          color: rgba(255,255,255,0.2);
+          margin-top: 0.25rem;
+          font-family: 'IBM Plex Mono', monospace;
+        }
       `}</style>
 
       <div className="v-root">
@@ -344,47 +429,115 @@ export default function Home() {
               <div className="v-breadcrumb">
                 <span>vouch</span>
                 <span>/</span>
-                <span className="v-breadcrumb-active">auth</span>
+                <span className="v-breadcrumb-active">{view === 'signin' ? 'sign-in' : 'sign-up'}</span>
               </div>
 
-              <div className="v-heading">Welcome back.</div>
-              <div className="v-subheading">Sign in to your workspace or create a new account.</div>
-
-              <div className="v-input-wrap">
-                <label className="v-input-label">Email Address</label>
-                <input
-                  type="email"
-                  className="v-input"
-                  placeholder="name@university.com"
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+              {/* Tab switcher */}
+              <div className="v-tab-row">
+                <button
+                  className={`v-tab ${view === 'signin' ? 'active' : ''}`}
+                  onClick={() => switchView('signin')}
+                >
+                  Sign In
+                </button>
+                <button
+                  className={`v-tab ${view === 'signup' ? 'active' : ''}`}
+                  onClick={() => switchView('signup')}
+                >
+                  Create Account
+                </button>
               </div>
 
-              <div className="v-input-wrap">
-                <label className="v-input-label">Password</label>
-                <input
-                  type="password"
-                  className="v-input"
-                  placeholder="Min. 6 characters"
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                />
-              </div>
+              {/* ─── SIGN IN VIEW ─── */}
+              {view === 'signin' && (
+                <div className="v-view" key="signin">
+                  <div className="v-heading">Welcome back.</div>
+                  <div className="v-subheading">Sign in to your workspace.</div>
 
-              <div className="v-divider" />
+                  <div className="v-input-wrap">
+                    <label className="v-input-label">Email Address</label>
+                    <input
+                      type="email"
+                      className="v-input"
+                      placeholder="name@university.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
 
-              <button className="v-btn v-btn-primary" onClick={handleLogin} disabled={loading}>
-                {loading ? <div className="v-spinner" /> : <>Sign In →</>}
-              </button>
+                  <div className="v-input-wrap">
+                    <label className="v-input-label">Password</label>
+                    <input
+                      type="password"
+                      className="v-input"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    />
+                  </div>
 
-              <button className="v-btn v-btn-ghost" onClick={handleSignUp} disabled={loading}>
-                {loading ? <div className="v-spinner" /> : 'Create New Account'}
-              </button>
+                  <div className="v-divider" />
+
+                  <button className="v-btn v-btn-primary" onClick={handleLogin} disabled={loading}>
+                    {loading ? <div className="v-spinner" /> : <>Sign In →</>}
+                  </button>
+                </div>
+              )}
+
+              {/* ─── SIGN UP VIEW ─── */}
+              {view === 'signup' && (
+                <div className="v-view" key="signup">
+                  <div className="v-heading">Create your account.</div>
+                  <div className="v-subheading">Join Vouch and start collaborating with your team.</div>
+
+                  <div className="v-input-wrap">
+                    <label className="v-input-label">Email Address</label>
+                    <input
+                      type="email"
+                      className="v-input"
+                      placeholder="name@university.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="v-input-wrap">
+                    <label className="v-input-label">Password</label>
+                    <input
+                      type="password"
+                      className="v-input"
+                      placeholder="Min. 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <div className="v-pw-hint">Must be at least 6 characters</div>
+                  </div>
+
+                  <div className="v-input-wrap">
+                    <label className="v-input-label">Confirm Password</label>
+                    <input
+                      type="password"
+                      className="v-input"
+                      placeholder="Re-enter your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+                    />
+                  </div>
+
+                  <div className="v-divider" />
+
+                  <button className="v-btn v-btn-signup" onClick={handleSignUp} disabled={loading}>
+                    {loading ? <div className="v-spinner" /> : <>Create Account ✓</>}
+                  </button>
+                </div>
+              )}
 
             </div>
 
             <div className="v-card-footer">
-              <span className="v-footer-text">vouch.app / auth</span>
+              <span className="v-footer-text">vouch.app / {view === 'signin' ? 'sign-in' : 'sign-up'}</span>
               <span className="v-footer-version">v1.0.0</span>
             </div>
           </div>

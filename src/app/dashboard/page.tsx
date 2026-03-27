@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase, supabaseConfigured } from '../../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
  
 export default function Dashboard() {
@@ -11,7 +11,15 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
  
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    setMounted(true)
+    if (!supabaseConfigured) {
+      console.error(
+        'Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.',
+      )
+      alert('Supabase is not configured. Please update .env.local and restart the dev server.')
+    }
+  }, [])
  
   const handleCreateProject = async () => {
     if (!projectName) return alert("Please type a project name first!")
@@ -35,8 +43,9 @@ export default function Dashboard() {
 
       alert(`SUCCESS! Your Project Code is: ${createdProject.invite_code}`)
       router.push(`/project/${createdProject.id}`)
-    } catch (error: any) {
-      alert("Error: " + error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      alert('Error: ' + message)
     } finally {
       setLoading(false)
     }
@@ -51,6 +60,7 @@ export default function Dashboard() {
         .select('id, name')
         .eq('invite_code', inviteCodeInput.toUpperCase())
         .single()
+      if (findError) throw findError
       if (!project) throw new Error("Invalid Code! Project not found.")
       const { data: userData } = await supabase.auth.getUser()
       const { error: joinError } = await supabase
@@ -59,8 +69,9 @@ export default function Dashboard() {
       if (joinError) throw joinError
       alert(`Successfully joined: ${project.name}`)
       router.push(`/project/${project.id}`)
-    } catch (error: any) {
-      alert(error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      alert(message)
     } finally {
       setLoading(false)
     }
@@ -460,7 +471,7 @@ export default function Dashboard() {
               {view === 'selection' && (
                 <div className="v-view">
                   <div className="v-heading">Good to see you.</div>
-                  <div className="v-subheading">Select how you'd like to proceed.</div>
+                  <div className="v-subheading">Select how&apos;d like to proceed.</div>
  
                   <button className="v-option" onClick={() => setView('create')}>
                     <div className="v-option-icon">
@@ -479,7 +490,7 @@ export default function Dashboard() {
                     </div>
                     <div className="v-option-text">
                       <span className="v-option-label">Team Member</span>
-                      <span className="v-option-desc">Enter a code and join your team's workspace</span>
+                      <span className="v-option-desc">Enter a code and join your team&apos;s workspace</span>
                     </div>
                     <span className="v-option-arrow">›</span>
                   </button>
@@ -489,7 +500,7 @@ export default function Dashboard() {
               {view === 'create' && (
                 <div className="v-view">
                   <div className="v-heading">New Project</div>
-                  <div className="v-subheading">Name it. We'll handle the rest.</div>
+                  <div className="v-subheading">Name it. We&apos;ll handle the rest.</div>
  
                   <div className="v-input-wrap">
                     <label className="v-input-label">Project Name</label>
