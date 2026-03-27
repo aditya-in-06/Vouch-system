@@ -97,6 +97,14 @@ If **Email** sign-in is enabled and **Confirm email** is on, new users must clic
 
 ---
 
+## CI/CD (GitHub → Vercel)
+
+- Workflow: `.github/workflows/vercel-deploy.yml` builds, pulls Vercel env, and deploys. Main branch deploys to production; PRs deploy to preview.
+- Add repo secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (find org/project IDs in Vercel → Settings). Vercel env vars should be configured in the Vercel dashboard.
+- First-time link: create the Vercel project from this GitHub repo (or set the IDs manually) so `vercel pull` can fetch env config.
+
+---
+
 ## Troubleshooting
 
 | Problem | What to check |
