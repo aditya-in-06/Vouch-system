@@ -142,9 +142,9 @@ export default function ProjectHubPage() {
 
       setProject(projectData)
       // Deduplicate members by user_id to prevent duplicate React keys
-      const uniqueMembers = Array.from(
-        new Map((memberRows ?? []).map(m => [m.user_id, m])).values()
-      )
+      const uniqueMembers: Member[] = Array.from(
+        new Map((memberRows ?? []).map((m: Member) => [m.user_id, m])).values()
+      ) as Member[]
       setMembers(uniqueMembers)
       setTasks(taskRows ?? [])
       setTaskVouches(vouchRows ?? [])
